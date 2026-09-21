@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>cursor-cost: know what Cursor is costing you</title>
+    <meta
+      name="description"
+      content="cursor-cost pulls your Cursor usage from your own dashboard and turns it into a terminal report: cost per model, per day, week and month, with budget tracking. No admin API key needed."
+    />
+
+    <meta property="og:title" content="cursor-cost: know what Cursor is costing you" />
+    <meta
+      property="og:description"
+      content="Per model, per day, per month. Included vs on-demand spend, MTD projection, budget bar. One cookie, one command."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://l-ubu.github.io/cursor-cost/" />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💸</text></svg>"
+    />
+
+    <style>
+      :root {
+        --bg: #0a0c10;
+        --bg-soft: #11151c;
+        --panel: #151a23;
+        --line: #232a36;
+        --text: #e6edf3;
+        --muted: #8b98a9;
+        --dim: #5c6773;
+        --accent: #38bdf8;
+        --accent-dim: #0ea5e9;
+        --green: #4ade80;
+        --red: #f87171;
+        --amber: #fbbf24;
+        --magenta: #e879f9;
+        --mono:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        font-size: 17px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(60rem 40rem at 50% -10rem, rgba(56, 189, 248, 0.09), transparent 70%),
+          linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 100% 4.5rem,
+          linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 4.5rem 100%;
+        opacity: 0.35;
+        mask-image: radial-gradient(70rem 50rem at 50% 0, #000 30%, transparent 75%);
+      }
+
+      .wrap {
+        position: relative;
+        max-width: 60rem;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ---------------------------------------------------------------- hero */
+      header {
+        padding: 5.5rem 0 3.5rem;
+        text-align: center;
+      }
+
+      pre.logo {
+        font-family: var(--mono);
+        font-size: clamp(0.3rem, 1.25vw, 0.68rem);
+        line-height: 1.25;
+        color: var(--accent);
+        margin: 0 0 2rem;
+        overflow: hidden;
+        text-shadow: 0 0 1.5rem rgba(56, 189, 248, 0.35);
+      }
+
+      h1 {
+        font-size: clamp(1.75rem, 4.5vw, 2.6rem);
+        line-height: 1.2;
+        margin: 0 0 0.9rem;
+        letter-spacing: -0.02em;
+      }
+
+      .tagline {
+        color: var(--muted);
+        font-size: 1.12rem;
+        max-width: 36rem;
+        margin: 0 auto 2.25rem;
+      }
+
+      .badges {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 2.25rem;
+      }
+
+      .badge {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        padding: 0.28rem 0.6rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--bg-soft);
+      }
+      .badge b {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* ------------------------------------------------------------- install */
+      .install {
+        display: flex;
+        align-items: stretch;
+        gap: 0;
+        max-width: 30rem;
+        margin: 0 auto 1rem;
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
+        background: var(--bg-soft);
+        overflow: hidden;
+      }
+
+      .install code {
+        font-family: var(--mono);
+        font-size: 0.88rem;
+        padding: 0.85rem 1rem;
+        flex: 1;
+        text-align: left;
+        color: var(--text);
+        white-space: nowrap;
+        overflow-x: auto;
+      }
+      .install code .p {
+        color: var(--accent);
+        user-select: none;
+      }
+
+      .install button {
+        font-family: var(--sans);
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0 1.05rem;
+        border: 0;
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--muted);
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          background 0.15s;
+      }
+      .install button:hover {
+        color: var(--accent);
+        background: #1a212c;
+      }
+      .install button.done {
+        color: var(--accent);
+      }
+
+      .hero-links {
+        font-size: 0.9rem;
+        color: var(--dim);
+      }
+      .hero-links a {
+        margin: 0 0.55rem;
+      }
+
+      /* ------------------------------------------------------------ terminal */
+      section {
+        padding: 3.25rem 0;
+      }
+
+      h2 {
+        font-size: 1.35rem;
+        margin: 0 0 0.5rem;
+        letter-spacing: -0.01em;
+      }
+      h2 .n {
+        font-family: var(--mono);
+        color: var(--accent);
+        font-size: 0.85rem;
+        margin-right: 0.55rem;
+      }
+
+      .lede {
+        color: var(--muted);
+        margin: 0 0 1.75rem;
+        max-width: 42rem;
+      }
+
+      .terminal {
+        border: 1px solid var(--line);
+        border-radius: 0.7rem;
+        background: #080a0e;
+        overflow: hidden;
+        box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.5);
+      }
+
+      .tbar {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.7rem 0.95rem;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      .dot {
+        width: 0.68rem;
+        height: 0.68rem;
+        border-radius: 50%;
+        background: #2c3441;
+      }
+      .tbar span {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        color: var(--dim);
+      }
+
+      .terminal pre {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        line-height: 1.75;
+        margin: 0;
+        padding: 1.15rem;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      .g {
+        color: var(--green);
+      }
+      .r {
+        color: var(--red);
+      }
+      .a {
+        color: var(--amber);
+      }
+      .c {
+        color: var(--accent);
+      }
+      .d {
+        color: var(--dim);
+      }
+      .m {
+        color: var(--muted);
+      }
+      .mg {
+        color: var(--magenta);
+      }
+      .b {
+        font-weight: 700;
+      }
+
+      /* --------------------------------------------------------------- cards */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15.5rem, 1fr));
+        gap: 1rem;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 0.7rem;
+        background: linear-gradient(180deg, var(--bg-soft), rgba(17, 21, 28, 0.35));
+        padding: 1.35rem;
+        transition:
+          border-color 0.18s,
+          transform 0.18s;
+      }
+      .card:hover {
+        border-color: #33405280;
+        transform: translateY(-2px);
+      }
+
+      .card h3 {
+        font-size: 0.94rem;
+        margin: 0 0 0.5rem;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+      .card h3 i {
+        font-family: var(--mono);
+        font-style: normal;
+        color: var(--accent);
+        font-size: 0.85rem;
+      }
+      .card p {
+        margin: 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* --------------------------------------------------------------- table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.7rem 0.5rem;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--dim);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 600;
+      }
+      td code {
+        font-family: var(--mono);
+        font-size: 0.84rem;
+        color: var(--accent);
+        white-space: nowrap;
+      }
+      td:last-child {
+        color: var(--muted);
+      }
+
+      /* -------------------------------------------------------------- reasons */
+      .reason {
+        border-left: 2px solid var(--line);
+        padding: 0 0 0 1.15rem;
+        margin-bottom: 1.6rem;
+      }
+      .reason:hover {
+        border-left-color: var(--accent-dim);
+      }
+      .reason h3 {
+        font-size: 0.98rem;
+        margin: 0 0 0.35rem;
+      }
+      .reason p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      .reason code,
+      .lede code,
+      .card p code {
+        font-family: var(--mono);
+        font-size: 0.85em;
+        background: var(--panel);
+        padding: 0.1rem 0.32rem;
+        border-radius: 0.25rem;
+        color: var(--text);
+      }
+
+      footer {
+        padding: 3rem 0 4rem;
+        text-align: center;
+        color: var(--dim);
+        font-size: 0.86rem;
+        border-top: 1px solid var(--line);
+        margin-top: 2rem;
+      }
+
+      @media (max-width: 40rem) {
+        body {
+          font-size: 16px;
+        }
+        header {
+          padding: 3.5rem 0 2.5rem;
+        }
+        .terminal pre {
+          font-size: 0.68rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <pre class="logo" aria-label="cursor-cost">
+ ██████╗██╗   ██╗██████╗ ███████╗ ██████╗ ██████╗      ██████╗ ██████╗ ███████╗████████╗
+██╔════╝██║   ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗    ██╔════╝██╔═══██╗██╔════╝╚══██╔══╝
+██║     ██║   ██║██████╔╝███████╗██║   ██║██████╔╝    ██║     ██║   ██║███████╗   ██║
+██║     ██║   ██║██╔══██╗╚════██║██║   ██║██╔══██╗    ██║     ██║   ██║╚════██║   ██║
+╚██████╗╚██████╔╝██║  ██║███████║╚██████╔╝██║  ██║    ╚██████╗╚██████╔╝███████║   ██║
+ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚══════╝   ╚═╝
+</pre>
+
+        <h1>Know what Cursor is costing you.</h1>
+        <p class="tagline">
+          Per model, per day, per month. Included vs on-demand spend, month-to-date projection, and
+          a budget bar — from your own dashboard, no admin API key needed.
+        </p>
+
+        <div class="badges">
+          <span class="badge">admin key <b>not needed</b></span>
+          <span class="badge">session <b>self-renews</b></span>
+          <span class="badge">data stays <b>local</b></span>
+          <span class="badge">MIT</span>
+        </div>
+
+        <div class="install">
+          <code id="cmd"><span class="p">$ </span>npm install -g cursor-cost</code>
+          <button id="copy" type="button">Copy</button>
+        </div>
+
+        <p class="hero-links">
+          <a href="https://github.com/L-ubu/cursor-cost">GitHub</a>·
+          <a href="#report">The report</a>· <a href="#features">Features</a>·
+          <a href="#commands">Commands</a>· <a href="#how">How it works</a>
+        </p>
+      </header>
+
+      <section id="report">
+        <h2><span class="n">01</span>One command, full picture</h2>
+        <p class="lede">
+          <code>cursor-cost</code> fetches your usage from the same dashboard endpoints your browser
+          uses, dedupes it into a local store, and prints this. On-demand spend is red because
+          that's the money; included usage is green because it's already paid for.
+        </p>
+
+        <div class="terminal">
+          <div class="tbar">
+            <i class="dot"></i><i class="dot"></i><i class="dot"></i><span>zsh</span>
+          </div>
+          <pre><span class="d">$</span> cursor-cost
+
+  <span class="mg">╭──────────────────────────────────────────────╮</span>
+  <span class="mg">│</span>              <span class="a b">CURSOR COST REPORT</span>              <span class="mg">│</span>
+  <span class="mg">╰──────────────────────────────────────────────╯</span>
+
+<span class="d">Billing cycle:</span> <span class="c">Aug 31, 2026 - Sep 30, 2026</span>
+
+<span class="d">Events:</span> 556  <span class="d">│</span>  <span class="d">Tokens:</span> 530.50M
+
+<span class="d">On-Demand:</span> <span class="r b">$322.65</span>  <span class="d">│</span>  <span class="d">Included rows:</span> <span class="g">159</span>
+
+<span class="d">MTD avg/day:</span> <span class="a">$20.17</span>  <span class="d">│</span>  <span class="d">Projected:</span> <span class="a">$604.97</span> <span class="d">(day 21/30)</span>
+
+<span class="d">Budget</span> $50.00 <span class="r">████████████████████████████</span> <span class="r b">100%</span>
+
+  <span class="r b">OVER BUDGET — spending is above your monthly cap</span>
+
+<span class="mg">╭─</span> <span class="b">By model</span> <span class="mg">────────────────────────────────────╮</span>
+ <span class="c b">Model                      </span> <span class="d">│</span> <span class="c b">Tokens </span> <span class="d">│</span> <span class="c b">On-Demand</span> <span class="d">│</span> <span class="c b">% OD </span> <span class="d">│</span> <span class="c b">Rows</span>
+<span class="d">─────────────────────────────┼─────────┼───────────┼───────┼─────</span>
+ <span class="c">claude-opus-5-thinking-high</span> <span class="d">│</span> 203.86M <span class="d">│</span> <span class="r">$203.33  </span> <span class="d">│</span> 63.0% <span class="d">│</span> 143
+ <span class="mg">kimi-k3-max                </span> <span class="d">│</span> 187.48M <span class="d">│</span> <span class="r">$111.20  </span> <span class="d">│</span> 34.5% <span class="d">│</span> 255
+ <span class="a">agent_review               </span> <span class="d">│</span> 38.34M  <span class="d">│</span> <span class="r">$6.53    </span> <span class="d">│</span> 2.0%  <span class="d">│</span> 18
+ <span class="g">composer-2.5-fast          </span> <span class="d">│</span> 98.98M  <span class="d">│</span> <span class="d">$0.00    </span> <span class="d">│</span> 0.0%  <span class="d">│</span> 136
+</pre>
+        </div>
+      </section>
+
+      <section id="features">
+        <h2><span class="n">02</span>What you get</h2>
+
+        <div class="grid">
+          <div class="card">
+            <h3><i>◆</i> No admin key needed</h3>
+            <p>
+              Uses the same dashboard endpoints your browser uses. If you can open
+              cursor.com/dashboard/usage, you can run this.
+            </p>
+          </div>
+          <div class="card">
+            <h3><i>◆</i> Self-renewing session</h3>
+            <p>
+              Every response's <code>Set-Cookie</code> is persisted back to the jar, so the session
+              rolls forward with use. A dead session is a 30-second re-copy.
+            </p>
+          </div>
+          <div class="card">
+            <h3><i>◆</i> Never double-counts</h3>
+            <p>
+              Events are deduped on <code>(timestamp, model, tokens, cost)</code>. Overlapping
+              fetches, re-runs and pagination overlaps are all safe.
+            </p>
+          </div>
+          <div class="card">
+            <h3><i>◆</i> Budget bar with projection</h3>
+            <p>
+              Month-to-date spend, daily average, projected end-of-month cost, and a bar that turns
+              red before your wallet does.
+            </p>
+          </div>
+          <div class="card">
+            <h3><i>◆</i> Daily sync via launchd</h3>
+            <p>
+              <code>cursor-cost install-schedule</code> fetches every morning at 08:30 and pings you
+              with a macOS notification if auth ever dies.
+            </p>
+          </div>
+          <div class="card">
+            <h3><i>◆</i> Data stays local</h3>
+            <p>
+              Everything lives in <code>~/.cursor-cost/</code>. The only network traffic is to
+              cursor.com itself. <code>--json</code> for piping anywhere else.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="commands">
+        <h2><span class="n">03</span>Commands</h2>
+        <p class="lede">Each command answers one question.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Answers</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>cursor-cost</code></td>
+              <td>How much have I spent this billing cycle?</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost models</code></td>
+              <td>Which model is burning the money?</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost day</code></td>
+              <td>What did each day cost?</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost week</code></td>
+              <td>Week-over-week trend</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost month</code></td>
+              <td>Month totals</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost report --json</code></td>
+              <td>Machine-readable, from the local store</td>
+            </tr>
+            <tr>
+              <td><code>cursor-cost install-schedule</code></td>
+              <td>Fetch daily at 08:30, notify on auth failure</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="how">
+        <h2><span class="n">04</span>How it works</h2>
+        <p class="lede">The decisions worth knowing about, written down.</p>
+
+        <div class="reason">
+          <h3>Your cookie, your machine</h3>
+          <p>
+            The dashboard's usage table is loaded client-side from
+            <code>/api/dashboard/get-filtered-usage-events</code>. cursor-cost calls the same
+            endpoint with your session cookie, with CSV export and HTML scraping as fallbacks. No
+            credentials are stored, no login is automated, nothing is proxied.
+          </p>
+        </div>
+
+        <div class="reason">
+          <h3>The jar renews itself</h3>
+          <p>
+            WorkOS sessions roll with activity. Every fetch persists response cookies back to
+            <code>~/.cursor-cost/data/session.json</code>, so running the tool is what keeps it
+            authenticated. The daily launchd job exists for exactly this reason.
+          </p>
+        </div>
+
+        <div class="reason">
+          <h3>Dead sessions fail loud, not silent</h3>
+          <p>
+            Absolute expiry, logout or a password change kills the session for good. The tool
+            detects the redirect, fires a macOS notification, and prints the 30-second fix — instead
+            of letting you find out at month-end.
+          </p>
+        </div>
+
+        <div class="reason">
+          <h3>Included vs on-demand, always split</h3>
+          <p>
+            Only on-demand rows cost real money. Included usage is shown for context — tokens,
+            models, trends — but the budget bar tracks what actually bills you.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          MIT licensed · built by <a href="https://github.com/L-ubu">L-ubu</a> after one invoice too
+          many
+        </p>
+        <p>
+          <a href="https://github.com/L-ubu/cursor-cost">github.com/L-ubu/cursor-cost</a>
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      const button = document.getElementById("copy");
+      button.addEventListener("click", async () => {
+        const command = "npm install -g cursor-cost";
+        try {
+          await navigator.clipboard.writeText(command);
+        } catch {
+          const area = document.createElement("textarea");
+          area.value = command;
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand("copy");
+          area.remove();
+        }
+        button.textContent = "Copied";
+        button.classList.add("done");
+        setTimeout(() => {
+          button.textContent = "Copy";
+          button.classList.remove("done");
+        }, 1800);
+      });
+    </script>
+  </body>
+</html>

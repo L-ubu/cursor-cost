@@ -1,0 +1,52 @@
+{
+  "name": "cursor-cost",
+  "version": "1.0.0",
+  "description": "Know what Cursor is costing you. Per model, per day, per month — from your own dashboard, no admin API key needed.",
+  "type": "module",
+  "bin": {
+    "cursor-cost": "bin/cursor-cost.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "config.mjs",
+    ".env.example"
+  ],
+  "keywords": [
+    "cursor",
+    "cursor-ai",
+    "cursor-editor",
+    "usage",
+    "cost",
+    "cost-tracker",
+    "billing",
+    "tokens",
+    "ai-cost",
+    "cli",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": "L-ubu (https://github.com/L-ubu)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/L-ubu/cursor-cost.git"
+  },
+  "homepage": "https://l-ubu.github.io/cursor-cost/",
+  "bugs": "https://github.com/L-ubu/cursor-cost/issues",
+  "scripts": {
+    "discover": "node src/discover.mjs",
+    "fetch": "node src/fetch.mjs",
+    "report": "node src/report.mjs",
+    "cost": "node src/fetch.mjs && node src/report.mjs",
+    "install-schedule": "node scripts/install-schedule.mjs",
+    "uninstall-schedule": "node scripts/uninstall-schedule.mjs",
+    "verify": "node scripts/verify-parser.mjs"
+  },
+  "dependencies": {
+    "node-html-parser": "^7.0.1"
+  }
+}

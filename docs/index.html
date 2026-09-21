@@ -100,7 +100,10 @@
         font-size: clamp(0.3rem, 1.25vw, 0.68rem);
         line-height: 1.25;
         color: var(--accent);
-        margin: 0 0 2rem;
+        /* Center the block as a unit; per-line centering breaks on unequal line widths. */
+        display: inline-block;
+        text-align: left;
+        margin: 0 auto 2rem;
         overflow: hidden;
         text-shadow: 0 0 1.5rem rgba(56, 189, 248, 0.35);
       }

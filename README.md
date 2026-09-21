@@ -1,12 +1,12 @@
 <div align="center">
 
 ```
- ██████╗██╗   ██╗██████╗ ███████╗ ██████╗ ██████╗      ██████╗ ██████╗ ███████╗████████╗
-██╔════╝██║   ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗    ██╔════╝██╔═══██╗██╔════╝╚══██╔══╝
-██║     ██║   ██║██████╔╝███████╗██║   ██║██████╔╝    ██║     ██║   ██║███████╗   ██║
-██║     ██║   ██║██╔══██╗╚════██║██║   ██║██╔══██╗    ██║     ██║   ██║╚════██║   ██║
-╚██████╗╚██████╔╝██║  ██║███████║╚██████╔╝██║  ██║    ╚██████╗╚██████╔╝███████║   ██║
- ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚══════╝   ╚═╝
+ ██████╗██╗   ██╗██████╗ ███████╗ ██████╗ ██████╗        ██████╗ ██████╗ ███████╗████████╗
+██╔════╝██║   ██║██╔══██╗██╔════╝██╔═══██╗██╔══██╗      ██╔════╝██╔═══██╗██╔════╝╚══██╔══╝
+██║     ██║   ██║██████╔╝███████╗██║   ██║██████╔╝█████╗██║     ██║   ██║███████╗   ██║
+██║     ██║   ██║██╔══██╗╚════██║██║   ██║██╔══██╗╚════╝██║     ██║   ██║╚════██║   ██║
+╚██████╗╚██████╔╝██║  ██║███████║╚██████╔╝██║  ██║      ╚██████╗╚██████╔╝███████║   ██║
+ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝       ╚═════╝ ╚═════╝ ╚══════╝   ╚═╝
 ```
 
 **Know what Cursor is costing you. Per model, per day, per month.**
@@ -83,16 +83,16 @@ budget bar shifts green → cyan → yellow → red as you approach the cap.
 
 ## Commands
 
-| Command                          | Answers                                    |
-| -------------------------------- | ------------------------------------------ |
-| `cursor-cost`                    | How much have I spent this billing cycle?  |
-| `cursor-cost models`             | Which model is burning the money?          |
-| `cursor-cost day`                | What did each day cost?                    |
-| `cursor-cost week`               | Week-over-week trend                       |
-| `cursor-cost month`              | Month totals                               |
-| `cursor-cost report --json`      | Machine-readable, from the local store     |
-| `cursor-cost install-schedule`   | Fetch daily at 08:30 (macOS launchd)       |
-| `cursor-cost uninstall-schedule` | Remove the daily job                       |
+| Command                          | Answers                                   |
+| -------------------------------- | ----------------------------------------- |
+| `cursor-cost`                    | How much have I spent this billing cycle? |
+| `cursor-cost models`             | Which model is burning the money?         |
+| `cursor-cost day`                | What did each day cost?                   |
+| `cursor-cost week`               | Week-over-week trend                      |
+| `cursor-cost month`              | Month totals                              |
+| `cursor-cost report --json`      | Machine-readable, from the local store    |
+| `cursor-cost install-schedule`   | Fetch daily at 08:30 (macOS launchd)      |
+| `cursor-cost uninstall-schedule` | Remove the daily job                      |
 
 Set your budget with `CURSOR_MONTHLY_BUDGET_USD` (default `$50`) in
 `~/.cursor-cost/.env`.

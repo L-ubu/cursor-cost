@@ -10,7 +10,7 @@ Run the cursor-cost tooling for this workspace and show the user the terminal ou
    - If `/cost month`: `npm run fetch && node src/report.mjs month`
    - If `/cost models`: `npm run fetch && node src/report.mjs models`
    - If `/cost day`: `npm run fetch && node src/report.mjs day`
-   - If auth fails, tell them to refresh `CURSOR_SESSION_COOKIE` in `.env` and retry.
+   - If auth fails, run `node src/login.mjs` (opens a browser to re-capture the session) and retry.
 
 2. Paste the command output in chat. Summarize on-demand spend vs budget and top 3 models by cost.
 

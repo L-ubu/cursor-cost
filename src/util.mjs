@@ -81,13 +81,14 @@ export function notifyMac(title, message) {
 
 export function printAuthHelp() {
   console.error(`
-Session expired or missing. Fix in ~30 seconds:
+Session expired or missing. Easiest fix:
 
-  1. Open https://cursor.com/dashboard/usage (logged in)
-  2. DevTools → Network → reload → pick the usage document request
-  3. Copy the full Cookie header (or paste into .env as CURSOR_SESSION_COOKIE=)
-  4. Run: npm run fetch
+  cursor-cost login
 
-The cookie jar at data/session.json will take over after the next successful fetch.
+That opens a browser, you log in, cookies are captured automatically.
+
+Manual alternative: paste a fresh Cookie header (DevTools → Network → usage
+request) into ~/.cursor-cost/.env as CURSOR_SESSION_COOKIE=..., then delete
+~/.cursor-cost/data/session.json so the jar re-seeds.
 `);
 }

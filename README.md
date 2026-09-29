@@ -34,19 +34,27 @@ No team admin API key. No config service. One cookie, one command.
 
 ```bash
 npm install -g cursor-cost
+cursor-cost login
 ```
 
-Then give it your session cookie (30 seconds, once):
+`login` opens a browser window on cursor.com — log in there (Google, GitHub,
+MFA, whatever you use), and the cookie is captured automatically into
+`~/.cursor-cost/`. No DevTools, no copy-pasting.
+
+The cookie jar renews itself from then on — see [How it works](#how-it-works).
+
+<details>
+<summary>Manual setup (no browser automation)</summary>
 
 1. Open [cursor.com/dashboard/usage](https://cursor.com/dashboard/usage) while logged in
 2. DevTools → **Network** → reload → click the `usage` request → copy the full **Cookie** header
-3. `mkdir -p ~/.cursor-cost && cd ~/.cursor-cost && cursor-cost` — or paste it into a `.env`:
+3. Save it:
 
 ```bash
 echo 'CURSOR_SESSION_COOKIE=<paste here>' > ~/.cursor-cost/.env
 ```
 
-The cookie jar renews itself from then on — see [How it works](#how-it-works).
+</details>
 
 ## What it looks like
 
@@ -85,6 +93,7 @@ budget bar shifts green → cyan → yellow → red as you approach the cap.
 
 | Command                          | Answers                                   |
 | -------------------------------- | ----------------------------------------- |
+| `cursor-cost login`              | Capture your session (opens a browser)    |
 | `cursor-cost`                    | How much have I spent this billing cycle? |
 | `cursor-cost models`             | Which model is burning the money?         |
 | `cursor-cost day`                | What did each day cost?                   |
@@ -99,15 +108,17 @@ Set your budget with `CURSOR_MONTHLY_BUDGET_USD` (default `$50`) in
 
 ## How it works
 
-**Your cookie, your machine.** The session cookie seeds a cookie jar at
-`~/.cursor-cost/data/session.json`. Every response's `Set-Cookie` is persisted
-back, so the WorkOS session rolls forward with use. Run it regularly — the
-daily launchd job exists exactly for this — and you won't have to think about
-the cookie again.
+**Your cookie, your machine.** `cursor-cost login` drives your installed
+browser (Chrome/Edge/Chromium via playwright-core — no bundled download) with a
+fresh profile. You log in yourself; the script only reads the resulting
+cursor.com cookies and writes them to `~/.cursor-cost/` with `0600`
+permissions. Every response's `Set-Cookie` is persisted back, so the WorkOS
+session rolls forward with use. Run it regularly — the daily launchd job
+exists exactly for this — and you won't have to think about the cookie again.
 
-**Dead session = 30-second fix.** Absolute expiry, logout or a password change
+**Dead session = one command.** Absolute expiry, logout or a password change
 kills the session for good. The tool detects the login redirect, fires a macOS
-notification, and prints the re-copy instructions.
+notification, and `cursor-cost login` gets you back in under a minute.
 
 **Never double-counts.** Events land in a deduped store keyed on
 `(timestamp, model, tokens, cost)`, so overlapping fetches are safe.

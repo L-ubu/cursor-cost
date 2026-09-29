@@ -436,7 +436,9 @@
         </div>
 
         <div class="install">
-          <code id="cmd"><span class="p">$ </span>npm install -g cursor-cost</code>
+          <code id="cmd"
+            ><span class="p">$ </span>npm install -g cursor-cost &amp;&amp; cursor-cost login</code
+          >
           <button id="copy" type="button">Copy</button>
         </div>
 
@@ -550,6 +552,10 @@
           </thead>
           <tbody>
             <tr>
+              <td><code>cursor-cost login</code></td>
+              <td>Capture your session — opens a browser, you just log in</td>
+            </tr>
+            <tr>
               <td><code>cursor-cost</code></td>
               <td>How much have I spent this billing cycle?</td>
             </tr>
@@ -588,10 +594,12 @@
         <div class="reason">
           <h3>Your cookie, your machine</h3>
           <p>
-            The dashboard's usage table is loaded client-side from
-            <code>/api/dashboard/get-filtered-usage-events</code>. cursor-cost calls the same
-            endpoint with your session cookie, with CSV export and HTML scraping as fallbacks. No
-            credentials are stored, no login is automated, nothing is proxied.
+            <code>cursor-cost login</code> opens your installed browser with a fresh profile — you
+            log in yourself, MFA and all, and the script only reads the resulting cursor.com
+            cookies into <code>~/.cursor-cost/</code> (0600). The dashboard's usage table is loaded
+            client-side from <code>/api/dashboard/get-filtered-usage-events</code>; cursor-cost
+            calls the same endpoint, with CSV export and HTML scraping as fallbacks. No credentials
+            are stored, nothing is proxied.
           </p>
         </div>
 
@@ -636,7 +644,7 @@
     <script>
       const button = document.getElementById("copy");
       button.addEventListener("click", async () => {
-        const command = "npm install -g cursor-cost";
+        const command = "npm install -g cursor-cost && cursor-cost login";
         try {
           await navigator.clipboard.writeText(command);
         } catch {

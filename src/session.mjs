@@ -58,30 +58,19 @@ function mergeSetCookies(jar, setCookieHeaders) {
   return jar;
 }
 
-function mergeSeedIntoJar(stored) {
-  const seed = process.env.CURSOR_SESSION_COOKIE?.trim();
-  if (!seed) return stored;
-  const fromEnv = parseCookieHeader(seed);
-  stored.cookies = { ...fromEnv, ...stored.cookies };
-  for (const [k, v] of Object.entries(fromEnv)) {
-    stored.cookies[k] = v;
-  }
-  return stored;
-}
-
 export function loadJar() {
   /** @type {{ cookies: Record<string, CookieEntry>, updatedAt?: string }} */
   let stored = readJson(config.sessionPath, { cookies: {} });
   if (!stored.cookies) stored = { cookies: {} };
 
+  // .env is a one-time seed for an EMPTY jar. Once the jar has cookies it owns
+  // renewal via Set-Cookie rotation — re-applying a stale .env would clobber
+  // rotated values. To re-seed after a dead session: `cursor-cost login`.
   const seed = process.env.CURSOR_SESSION_COOKIE?.trim();
   if (seed && Object.keys(stored.cookies).length === 0) {
     stored.cookies = parseCookieHeader(seed);
     stored.updatedAt = new Date().toISOString();
     writeJson(config.sessionPath, stored);
-  } else if (seed) {
-    stored = mergeSeedIntoJar(stored);
-    saveJar(stored);
   }
 
   return stored;

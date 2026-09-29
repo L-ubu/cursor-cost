@@ -20,6 +20,7 @@ cursor-cost — know what Cursor is costing you
 
 Usage:
   cursor-cost                 fetch latest usage + print report
+  cursor-cost login           open a browser, capture your session automatically
   cursor-cost fetch           pull usage into the local store
   cursor-cost report          print report from local store (no fetch)
   cursor-cost day|week|month|models   fetch + that breakdown
@@ -28,13 +29,15 @@ Usage:
   cursor-cost install-schedule    daily 08:30 fetch (macOS launchd)
   cursor-cost uninstall-schedule  remove the launchd job
 
-Setup: copy .env.example to .env and paste your cursor.com Cookie header.
-Data lives in ~/.cursor-cost/ (session jar + deduped event store).
+Setup: cursor-cost login (once). Data lives in ~/.cursor-cost/.
 `);
 }
 
 let code = 0;
 switch (cmd) {
+  case "login":
+    code = run("src/login.mjs", args);
+    break;
   case "fetch":
     code = run("src/fetch.mjs", args);
     break;

@@ -10,16 +10,29 @@ const SESSION_COOKIE = "WorkosCursorSessionToken";
 const SYNCED_USER_COOKIE = "cursor-web-target-synced-user";
 const TIMEOUT_MS = 5 * 60 * 1000;
 
-async function launchBrowser(chromium) {
+async function launchContext(chromium) {
   // Drive an installed browser — no 100MB playwright download.
+  // Persistent context + stripped automation flags: cursor.com sits behind
+  // Cloudflare, which 403s the OAuth start endpoint when it smells automation.
+  const profileDir = path.join(config.home, "browser-profile");
+  ensureDir(config.home);
+  const opts = {
+    headless: false,
+    viewport: null,
+    ignoreDefaultArgs: ["--enable-automation"],
+    args: ["--disable-blink-features=AutomationControlled"],
+  };
   for (const channel of ["chrome", "msedge", "chromium"]) {
     try {
-      return await chromium.launch({ channel, headless: false });
+      return await chromium.launchPersistentContext(profileDir, {
+        channel,
+        ...opts,
+      });
     } catch {
       // try next channel
     }
   }
-  return chromium.launch({ headless: false });
+  return chromium.launchPersistentContext(profileDir, opts);
 }
 
 async function main() {
@@ -34,9 +47,8 @@ async function main() {
   console.log("Opening a browser window — log in to Cursor there.");
   console.log("Cookies are captured automatically once you're in.\n");
 
-  const browser = await launchBrowser(chromium);
-  const context = await browser.newContext();
-  const page = await context.newPage();
+  const context = await launchContext(chromium);
+  const page = context.pages()[0] ?? (await context.newPage());
   await page.goto(LOGIN_URL).catch(() => {});
 
   const deadline = Date.now() + TIMEOUT_MS;
@@ -51,8 +63,12 @@ async function main() {
       console.error("\nBrowser closed before login completed.");
       process.exit(1);
     }
-    const hasSession = cookies.some((c) => c.name === SESSION_COOKIE && c.value);
-    const hasSynced = cookies.some((c) => c.name === SYNCED_USER_COOKIE && c.value);
+    const hasSession = cookies.some(
+      (c) => c.name === SESSION_COOKIE && c.value,
+    );
+    const hasSynced = cookies.some(
+      (c) => c.name === SYNCED_USER_COOKIE && c.value,
+    );
     if (hasSession && hasSynced) {
       captured = cookies;
       break;
@@ -60,10 +76,12 @@ async function main() {
     await new Promise((r) => setTimeout(r, 1000));
   }
 
-  await browser.close().catch(() => {});
+  await context.close().catch(() => {});
 
   if (!captured) {
-    console.error("Timed out waiting for login (5 min). Run `cursor-cost login` again.");
+    console.error(
+      "Timed out waiting for login (5 min). Run `cursor-cost login` again.",
+    );
     process.exit(1);
   }
 
@@ -72,7 +90,10 @@ async function main() {
   // 1. Seed file (transparency + manual re-seed path)
   ensureDir(config.home);
   const envPath = path.join(config.home, ".env");
-  fs.writeFileSync(envPath, `CURSOR_SESSION_COOKIE=${header}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(envPath, `CURSOR_SESSION_COOKIE=${header}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
 
   // 2. Write the cookie jar directly so it takes over immediately
   const jar = { cookies: {}, updatedAt: new Date().toISOString() };

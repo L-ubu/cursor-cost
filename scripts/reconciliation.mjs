@@ -89,6 +89,7 @@ async function main() {
   }
 
   const team = loadTeamEvents();
+  let teamTotal = 0;
   if (team.events.length) {
     const byUser = {};
     for (const e of team.events) {
@@ -97,12 +98,23 @@ async function main() {
       byUser[u].rows++;
       if (e.type === "On-Demand" && e.costUsd != null) byUser[u].od += e.costUsd;
     }
-    const teamTotal = Object.values(byUser).reduce((a, v) => a + v.od, 0);
+    teamTotal = Object.values(byUser).reduce((a, v) => a + v.od, 0);
     console.log("\nTeam store (imported CSVs):");
     for (const [u, v] of Object.entries(byUser).sort((a, b) => b[1].od - a[1].od)) {
       console.log(`  ${u}: $${v.od.toFixed(2)} (${v.rows} rows)`);
     }
     console.log(`  Team total: $${teamTotal.toFixed(2)}`);
+  }
+
+  const mi = process.argv.indexOf("--markup");
+  const markup = mi >= 0 ? Number(process.argv[mi + 1]) : null;
+  if (markup && Number.isFinite(markup) && markup > 0) {
+    console.log(`\nAt ${markup}x markup (billed to projects):`);
+    console.log(`  Current cycle: $${(cycleOd * markup).toFixed(2)}`);
+    console.log(`  All-time: $${(allOd * markup).toFixed(2)}`);
+    if (team.events.length) {
+      console.log(`  Team total: $${(teamTotal * markup).toFixed(2)}`);
+    }
   }
 
   console.log(`

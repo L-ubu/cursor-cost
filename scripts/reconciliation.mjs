@@ -3,7 +3,7 @@
  * Print scope totals for comparing with finance / work numbers.
  */
 import { loadEnv } from "../src/util.mjs";
-import { loadEvents } from "../src/store.mjs";
+import { loadEvents, loadTeamEvents } from "../src/store.mjs";
 import { filterEventsByBillingCycle } from "../src/scope.mjs";
 import {
   fetchAllFilteredUsageEvents,
@@ -76,14 +76,33 @@ async function main() {
     const live = await liveCurrentCycleOd();
     console.log("\nLive API (current billing cycle, fresh fetch):");
     console.log(`  On-Demand: $${live.od.toFixed(2)} (${live.events} events)`);
-    const drift = Math.abs(live.od - cycleOd);
-    if (drift > 0.05) {
+    const drift = live.od - cycleOd;
+    if (Math.abs(drift) > 0.05) {
       console.log(
-        `  Note: store differs by $${drift.toFixed(2)}; run cursor-cost fetch`,
+        drift > 0
+          ? `  Note: store is behind by $${drift.toFixed(2)}; run cursor-cost fetch`
+          : `  Note: store is ahead by $${(-drift).toFixed(2)} (recent events still settling on the API side)`,
       );
     }
   } catch (e) {
     console.log("\nLive API: skipped (" + e.message + ")");
+  }
+
+  const team = loadTeamEvents();
+  if (team.events.length) {
+    const byUser = {};
+    for (const e of team.events) {
+      const u = e.user || "unknown";
+      byUser[u] ||= { rows: 0, od: 0 };
+      byUser[u].rows++;
+      if (e.type === "On-Demand" && e.costUsd != null) byUser[u].od += e.costUsd;
+    }
+    const teamTotal = Object.values(byUser).reduce((a, v) => a + v.od, 0);
+    console.log("\nTeam store (imported CSVs):");
+    for (const [u, v] of Object.entries(byUser).sort((a, b) => b[1].od - a[1].od)) {
+      console.log(`  ${u}: $${v.od.toFixed(2)} (${v.rows} rows)`);
+    }
+    console.log(`  Team total: $${teamTotal.toFixed(2)}`);
   }
 
   console.log(`

@@ -102,6 +102,8 @@ budget bar shifts green → cyan → yellow → red as you approach the cap.
 | `cursor-cost week`               | Week-over-week trend                      |
 | `cursor-cost month`              | Month totals                              |
 | `cursor-cost report --json`      | Machine-readable, from the local store    |
+| `cursor-cost import <csv>`       | Import a team usage CSV export            |
+| `cursor-cost team`               | Per-user team breakdown from imported CSVs |
 | `cursor-cost install-schedule`   | Fetch daily at 08:30 (macOS launchd)      |
 | `cursor-cost uninstall-schedule` | Remove the daily job                      |
 
@@ -139,6 +141,11 @@ lives in `~/.cursor-cost/`, and `.env` / `data/` are gitignored in the repo.
   report splits them. Dollar amounts come from the dashboard field
   `usageBasedCosts` (same as the Cost column in the usage UI), not the CSV
   **Requests** column.
+- The dashboard API only exposes **your own** events, so fetch and the report
+  are always personal. For team totals, export the team usage CSV from the
+  dashboard (it has a real Cost column) and run `cursor-cost import <csv>`,
+  then `cursor-cost team`. Team data lives in a separate store and never mixes
+  into your personal report.
 - If Cursor changes the dashboard endpoints, the fetcher needs a small update.
   There are three fallbacks (JSON API → CSV export → HTML scrape), in that
   order.

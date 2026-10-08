@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import { config } from "../config.mjs";
 import { loadEvents } from "./store.mjs";
-import { c, padEndVisible, visibleLength, modelColor } from "./colors.mjs";
+import { c, visibleLength } from "./colors.mjs";
+import {
+  formatUsd,
+  formatTokens,
+  printTable,
+  sectionTitle,
+} from "./table.mjs";
 import { filterEventsByBillingCycle, projectionForCycle } from "./scope.mjs";
 
 const args = process.argv.slice(2);
@@ -28,17 +34,6 @@ function sumTokens(events) {
 
 function sumOnDemand(events) {
   return events.reduce((a, e) => a + onDemandCost(e), 0);
-}
-
-function formatUsd(n) {
-  return `$${n.toFixed(2)}`;
-}
-
-function formatTokens(n) {
-  if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-  return String(n);
 }
 
 function utcDay(iso) {
@@ -97,39 +92,6 @@ function asciiBar(ratio, width = 28) {
   const color = budgetBarColor(ratio);
   const pct = (r * 100).toFixed(0);
   return `${color(fill)}${c.dim(empty)} ${c.bold(color(`${pct}%`))}`;
-}
-
-function sectionTitle(text) {
-  const line = "─".repeat(Math.max(0, 44 - visibleLength(text)));
-  return `\n${c.brightMagenta("╭─")} ${c.bold(c.brightWhite(text))} ${c.brightMagenta(line + "╮")}`;
-}
-
-function printTable(headers, rows, { modelCol = -1 } = {}) {
-  const widths = headers.map((h, i) =>
-    Math.max(
-      visibleLength(h),
-      ...rows.map((r) => visibleLength(String(r[i] ?? ""))),
-    ),
-  );
-  const border = c.dim("│");
-  const headerLine = headers
-    .map((h, i) => ` ${c.bold(c.brightCyan(padEndVisible(h, widths[i])))} `)
-    .join(border);
-  const sep = widths.map((w) => c.dim("─".repeat(w + 2))).join(c.dim("┼"));
-  console.log(headerLine);
-  console.log(sep);
-  for (const row of rows) {
-    const cells = row.map((cell, i) => {
-      let s = String(cell ?? "");
-      if (i === modelCol) s = modelColor(stripModelColor(s))(s);
-      return ` ${padEndVisible(s, widths[i])} `;
-    });
-    console.log(cells.join(border));
-  }
-}
-
-function stripModelColor(s) {
-  return String(s).replace(/\x1b\[[0-9;]*m/g, "");
 }
 
 function kv(label, value) {

@@ -30,6 +30,7 @@ export const config = {
   dataDir: path.join(home, "data"),
   sessionPath: path.join(home, "data", "session.json"),
   eventsPath: path.join(home, "data", "events.json"),
+  teamEventsPath: path.join(home, "data", "team-events.json"),
   rawDir: path.join(home, "data", "raw"),
   userAgent:
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,9 +28,12 @@ Usage:
   cursor-cost report          print report from local store (no fetch)
   cursor-cost day|week|month|models   fetch + that breakdown
   cursor-cost report --json   machine-readable output
+  cursor-cost import <csv>    import a team usage CSV export (Cost column)
+  cursor-cost team            per-user team breakdown from imported CSVs
   cursor-cost discover        probe the dashboard, save raw HTML
   cursor-cost install-schedule    daily 08:30 fetch (macOS launchd)
   cursor-cost uninstall-schedule  remove the launchd job
+  cursor-cost --version       print version
 
 Setup: cursor-cost login (once). Data lives in ~/.cursor-cost/.
 `);
@@ -46,9 +50,24 @@ switch (cmd) {
   case "report":
     code = run("src/report.mjs", args);
     break;
+  case "import":
+    code = run("src/import.mjs", args);
+    break;
+  case "team":
+    code = run("src/team.mjs", args);
+    break;
   case "discover":
     code = run("src/discover.mjs", args);
     break;
+  case "--version":
+  case "-v":
+  case "version": {
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(root, "package.json"), "utf8"),
+    );
+    console.log(pkg.version);
+    break;
+  }
   case "install-schedule":
     code = run("scripts/install-schedule.mjs", args);
     break;

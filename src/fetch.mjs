@@ -54,17 +54,51 @@ function saveRaw(name, body) {
   return file;
 }
 
+function previousCycleWindow(startMs) {
+  const start = Number(startMs);
+  const d = new Date(start);
+  const prevStart = Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth() - 1,
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds(),
+    d.getUTCMilliseconds(),
+  );
+  return { startMs: String(prevStart), endMs: String(start - 1) };
+}
+
 async function fetchViaDashboardApi() {
   const teamId = teamIdFromJar();
   const result = await fetchAllFilteredUsageEvents({ teamId });
   const events = parseApiUsageResponse(result.events);
   const billingCycle = formatBillingCycleLabel(result.billingCycle);
+
+  // Also re-fetch the previous cycle so late-arriving events land without a
+  // manual backfill. The deduped merge makes overlapping rows safe.
+  const prevWindow = previousCycleWindow(result.billingCycle.startMs);
+  const prev = await fetchAllFilteredUsageEvents({ teamId, ...prevWindow });
+  const prevEvents = parseApiUsageResponse(prev.events);
+
   return {
-    events,
+    events: events.concat(prevEvents),
     billingCycle,
     billingCycleStartMs: result.billingCycle.startMs,
     billingCycleEndMs: result.billingCycle.endMs,
     pagination: { total: result.totalUsageEventsCount },
+    coverage: [
+      {
+        startMs: result.billingCycle.startMs,
+        endMs: result.billingCycle.endMs,
+        apiTotal: Number(result.totalUsageEventsCount ?? 0),
+      },
+      {
+        startMs: prevWindow.startMs,
+        endMs: prevWindow.endMs,
+        apiTotal: Number(prev.totalUsageEventsCount ?? 0),
+      },
+    ],
     source: "api",
   };
 }
@@ -246,6 +280,20 @@ async function main() {
     console.log(
       `Store: +${added} new, ${total} total events → ${config.eventsPath}`,
     );
+
+    if (result.coverage) {
+      for (const w of result.coverage) {
+        const inWindow = store.events.filter((e) => {
+          const t = new Date(e.timestamp).getTime();
+          return t >= Number(w.startMs) && t <= Number(w.endMs);
+        }).length;
+        if (inWindow < w.apiTotal) {
+          console.warn(
+            `Coverage gap: store has ${inWindow}/${w.apiTotal} events for a recent cycle window. Run: cursor-cost fetch --all`,
+          );
+        }
+      }
+    }
   } catch (e) {
     if (e instanceof AuthError) {
       handleAuthFailure(e);

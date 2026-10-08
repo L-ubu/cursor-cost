@@ -1,0 +1,6 @@
+Date,User,PR Author,Repo,PR Number,Cloud Agent ID,Automation ID,Kind,Model,Max Mode,Input (w/ Cache Write),Input (w/o Cache Write),Cache Read,Output Tokens,Total Tokens,Cost
+"2026-08-27T15:51:45.647Z","teammate@example.com","","","","","","On-Demand","kimi-k3-max","No","0","21863","107564","1936","131363","0.16"
+"2026-08-27T15:18:59.558Z","teammate@example.com","","","","","","On-Demand","kimi-k3-max","No","0","1580","1797400","206","1799186","1.00"
+"2026-08-27T13:50:30.513Z","teammate@example.com","","","","","","On-Demand","kimi-k3-max","No","0","875","1317784","245","1318904","0.73"
+"2026-08-27T13:28:19.248Z","teammate@example.com","","","","","","On-Demand","kimi-k3-max","No","0","1043","1215992","209","1217244","0.68"
+"2026-08-27T12:00:00.000Z","teammate@example.com","","","","","","Included","composer-2.5-fast","No","0","61295","133024","2278","196597","-"

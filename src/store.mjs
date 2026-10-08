@@ -2,11 +2,11 @@ import { config } from "../config.mjs";
 import { readJson, writeJson, ensureDir } from "./util.mjs";
 
 function eventKey(ev) {
-  return [ev.timestamp, ev.model, ev.tokens, ev.costUsd ?? "", ev.type].join("|");
+  return [ev.timestamp, ev.user || "", ev.model, ev.tokens, ev.costUsd ?? "", ev.type].join("|");
 }
 
-export function loadEvents() {
-  const data = readJson(config.eventsPath, {
+export function loadEvents(filePath = config.eventsPath) {
+  const data = readJson(filePath, {
     version: 1,
     events: [],
     meta: {},
@@ -15,7 +15,11 @@ export function loadEvents() {
   return data;
 }
 
-export function mergeEvents(existing, incoming, metaPatch = {}) {
+export function loadTeamEvents() {
+  return loadEvents(config.teamEventsPath);
+}
+
+export function mergeEvents(existing, incoming, metaPatch = {}, outPath = config.eventsPath) {
   const seen = new Set(existing.events.map(eventKey));
   let added = 0;
   for (const ev of incoming) {
@@ -28,6 +32,6 @@ export function mergeEvents(existing, incoming, metaPatch = {}) {
   existing.events.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   existing.meta = { ...existing.meta, ...metaPatch, lastFetchAt: new Date().toISOString() };
   ensureDir(config.dataDir);
-  writeJson(config.eventsPath, existing);
+  writeJson(outPath, existing);
   return { added, total: existing.events.length };
 }

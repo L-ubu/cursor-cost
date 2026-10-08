@@ -22,6 +22,8 @@ Usage:
   cursor-cost                 fetch latest usage + print report
   cursor-cost login           open a browser, capture your session automatically
   cursor-cost fetch           pull usage into the local store
+  cursor-cost fetch --all     backfill all months Cursor still has
+  cursor-cost fetch --months N  backfill the last N calendar months
   cursor-cost report          print report from local store (no fetch)
   cursor-cost day|week|month|models   fetch + that breakdown
   cursor-cost report --json   machine-readable output

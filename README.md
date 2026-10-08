@@ -95,6 +95,8 @@ budget bar shifts green → cyan → yellow → red as you approach the cap.
 | -------------------------------- | ----------------------------------------- |
 | `cursor-cost login`              | Capture your session (opens a browser)    |
 | `cursor-cost`                    | How much have I spent this billing cycle? |
+| `cursor-cost fetch --months N`   | Backfill the last N calendar months       |
+| `cursor-cost fetch --all`        | Backfill every month Cursor still has     |
 | `cursor-cost models`             | Which model is burning the money?         |
 | `cursor-cost day`                | What did each day cost?                   |
 | `cursor-cost week`               | Week-over-week trend                      |
@@ -122,6 +124,8 @@ notification, and `cursor-cost login` gets you back in under a minute.
 
 **Never double-counts.** Events land in a deduped store keyed on
 `(timestamp, model, tokens, cost)`, so overlapping fetches are safe.
+After install, run `cursor-cost fetch --all` once if you want prior months in
+`cursor-cost month`; depth depends on what Cursor still exposes in the dashboard.
 
 **Nothing leaves your machine** except requests to cursor.com itself. Data
 lives in `~/.cursor-cost/`, and `.env` / `data/` are gitignored in the repo.

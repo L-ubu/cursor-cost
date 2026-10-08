@@ -89,6 +89,7 @@ That opens a browser, you log in, cookies are captured automatically.
 
 Manual alternative: paste a fresh Cookie header (DevTools → Network → usage
 request) into ~/.cursor-cost/.env as CURSOR_SESSION_COOKIE=..., then delete
-~/.cursor-cost/data/session.json so the jar re-seeds.
+~/.cursor-cost/data/session.json so the jar re-seeds. Then run
+cursor-cost fetch.
 `);
 }

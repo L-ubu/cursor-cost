@@ -64,6 +64,50 @@ export function teamIdFromJar() {
   );
 }
 
+/** @returns {{ startMs: string, endMs: string, label: string }[]} */
+export function monthChunksBetween(startMs, endMs) {
+  const rangeStart = Number(startMs);
+  const rangeEnd = Number(endMs);
+  /** @type {{ startMs: string, endMs: string, label: string }[]} */
+  const chunks = [];
+  const start = new Date(rangeStart);
+  let y = start.getUTCFullYear();
+  let m = start.getUTCMonth();
+  const end = new Date(rangeEnd);
+  const endY = end.getUTCFullYear();
+  const endM = end.getUTCMonth();
+
+  while (y < endY || (y === endY && m <= endM)) {
+    const startOfMonth = Date.UTC(y, m, 1);
+    const endOfMonth = Date.UTC(y, m + 1, 0, 23, 59, 59, 999);
+    const label = `${y}-${String(m + 1).padStart(2, "0")}`;
+    chunks.push({
+      startMs: String(Math.max(startOfMonth, rangeStart)),
+      endMs: String(Math.min(endOfMonth, rangeEnd)),
+      label,
+    });
+    m += 1;
+    if (m > 11) {
+      m = 0;
+      y += 1;
+    }
+  }
+  return chunks;
+}
+
+/** Last N calendar months including the current month (UTC), oldest first. */
+export function monthChunksLastN(n) {
+  const count = Math.max(1, Math.floor(Number(n)) || 1);
+  const now = new Date();
+  const rangeEnd = now.getTime();
+  const rangeStart = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth() - (count - 1),
+    1,
+  );
+  return monthChunksBetween(rangeStart, rangeEnd);
+}
+
 export async function fetchFilteredUsagePage({
   teamId,
   startMs,

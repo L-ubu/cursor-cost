@@ -11,8 +11,30 @@ import {
   cookieHeaderFromJar,
 } from "./session.mjs";
 import { discoverCsvUrls, parseUsageHtml } from "./parse.mjs";
+import {
+  fetchFilteredUsagePage,
+  getBillingCycleMillis,
+  teamIdFromJar,
+} from "./api.mjs";
 
 loadEnv();
+
+async function probeDashboardApi() {
+  const teamId = teamIdFromJar();
+  const cycle = await getBillingCycleMillis(teamId);
+  const json = await fetchFilteredUsagePage({
+    teamId,
+    startMs: cycle.startMs,
+    endMs: cycle.endMs,
+    page: 1,
+    pageSize: 1,
+  });
+  const total = Number(json.totalUsageEventsCount ?? 0);
+  console.log(
+    `API probe (POST /api/dashboard/get-filtered-usage-events): OK, ${total} events in current billing cycle`,
+  );
+  return true;
+}
 
 async function main() {
   try {
@@ -20,19 +42,60 @@ async function main() {
       throw new AuthError("missing cookie");
     }
     ensureDir(config.rawDir);
-    console.log(`GET ${config.usageUrl}`);
-    const { response, text } = await cursorFetch(config.usageUrl);
-    const out = path.join(config.rawDir, `discover-${Date.now()}.html`);
-    fs.writeFileSync(out, text, "utf8");
-    console.log(`Saved ${text.length} bytes → ${out}`);
-    console.log(`Status: ${response.status}, final URL: ${response.url}`);
 
     console.log(
-      "\nPrimary data source: POST /api/dashboard/get-filtered-usage-events",
+      "Primary data source: POST /api/dashboard/get-filtered-usage-events",
     );
     console.log(
       "CSV fallback: GET /api/dashboard/export-usage-events-csv?startDate=&endDate=",
     );
+    console.log();
+
+    let apiOk = false;
+    try {
+      apiOk = await probeDashboardApi();
+    } catch (err) {
+      console.log(
+        `API probe (POST /api/dashboard/get-filtered-usage-events): failed — ${err.message}`,
+      );
+    }
+
+    let htmlOk = false;
+    let text = "";
+    let responseStatus = 0;
+    let responseUrl = config.usageUrl;
+
+    console.log(`\nGET ${config.usageUrl}`);
+    try {
+      const { response, text: html } = await cursorFetch(config.usageUrl);
+      text = html;
+      responseStatus = response.status;
+      responseUrl = response.url;
+      const out = path.join(config.rawDir, `discover-${Date.now()}.html`);
+      fs.writeFileSync(out, text, "utf8");
+      console.log(`Saved ${text.length} bytes → ${out}`);
+      console.log(`Status: ${responseStatus}, final URL: ${responseUrl}`);
+      htmlOk = true;
+    } catch (err) {
+      if (err instanceof AuthError) {
+        console.log(`HTML page probe failed — ${err.message}`);
+        console.log(
+          "  (fetch/report can still work via the JSON API if the probe above succeeded.)",
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    if (!apiOk && !htmlOk) {
+      handleAuthFailure(new AuthError("Dashboard API and HTML page both failed"));
+      process.exit(1);
+    }
+
+    if (!htmlOk) {
+      console.log("\nSkipping HTML CSV/parse steps (page request did not succeed).");
+      return;
+    }
 
     const csvUrls = discoverCsvUrls(text);
     console.log("\nCandidate CSV/export URLs in HTML:");
@@ -41,9 +104,15 @@ async function main() {
     for (const u of csvUrls) console.log(`  - ${u}`);
 
     for (const raw of csvUrls.slice(0, 5)) {
-      const url = raw.startsWith("http")
-        ? raw
-        : new URL(raw, config.usageUrl).toString();
+      let url;
+      try {
+        url = raw.startsWith("http")
+          ? raw
+          : new URL(raw, config.usageUrl).toString();
+      } catch (err) {
+        console.log(`\nProbe ${JSON.stringify(raw)}: invalid URL — ${err.message}`);
+        continue;
+      }
       try {
         const { response: r2, text: t2 } = await cursorFetch(url, {
           headers: { Accept: "text/csv,application/json,*/*" },

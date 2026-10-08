@@ -107,8 +107,8 @@ export class AuthError extends Error {
 }
 
 export function assertAuthenticated(response, finalUrl) {
-  if (response.status === 401) {
-    throw new AuthError("HTTP auth failure");
+  if (response.status === 401 || response.status === 403) {
+    throw new AuthError(`HTTP ${response.status} auth failure`);
   }
   const url = finalUrl || response.url;
   if (
@@ -123,7 +123,7 @@ export function handleAuthFailure(err) {
   printAuthHelp();
   notifyMac(
     "cursor-cost",
-    "Cursor session expired — re-copy cookie in .env and run npm run fetch",
+    "Cursor session expired — run cursor-cost login or refresh ~/.cursor-cost/.env",
   );
   if (err) console.error(err.message);
 }
@@ -167,7 +167,7 @@ async function fetchWithJar(stored, url, options = {}) {
     const hopKey = `${response.status}:${next}`;
     if (seen.has(hopKey)) {
       throw new AuthError(
-        "Redirect loop (missing cursor-web-target-synced-user or expired session)",
+        "Redirect loop on the dashboard page (missing or expired cursor-web-target-synced-user cookie). Run `cursor-cost login`, or paste the full Cookie header from DevTools into ~/.cursor-cost/.env and delete ~/.cursor-cost/data/session.json.",
       );
     }
     seen.add(hopKey);
@@ -200,7 +200,7 @@ export async function cursorFetch(url, options = {}) {
   }
 
   if (response.status >= 400) {
-    throw new AuthError(`HTTP ${response.status}`);
+    throw new Error(`HTTP ${response.status} from ${finalUrl || url}`);
   }
 
   return { response, text, stored };

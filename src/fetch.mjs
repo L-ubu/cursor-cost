@@ -18,11 +18,33 @@ import {
 import {
   fetchAllFilteredUsageEvents,
   fetchUsageCsv,
+  getBillingCycleMillis,
+  monthChunksLastN,
   teamIdFromJar,
 } from "./api.mjs";
 import { loadEvents, mergeEvents } from "./store.mjs";
 
 loadEnv();
+
+const CHUNK_DELAY_MS = 300;
+
+function parseFetchArgs(argv) {
+  const all = argv.includes("--all");
+  let months = null;
+  const mi = argv.indexOf("--months");
+  if (mi >= 0 && argv[mi + 1]) {
+    const n = parseInt(argv[mi + 1], 10);
+    if (Number.isFinite(n) && n > 0) months = n;
+  }
+  if (all && months != null) {
+    throw new Error("Use either --all or --months N, not both");
+  }
+  return { all, months };
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 function saveRaw(name, body) {
   ensureDir(config.rawDir);
@@ -41,6 +63,62 @@ async function fetchViaDashboardApi() {
     events,
     billingCycle,
     pagination: { total: result.totalUsageEventsCount },
+    source: "api",
+  };
+}
+
+async function fetchMonthChunk(teamId, chunk) {
+  const result = await fetchAllFilteredUsageEvents({
+    teamId,
+    startMs: chunk.startMs,
+    endMs: chunk.endMs,
+  });
+  const events = parseApiUsageResponse(result.events);
+  console.log(`${chunk.label}: ${events.length} events`);
+  return events;
+}
+
+async function fetchViaDashboardApiBackfill({ all, months }) {
+  const teamId = teamIdFromJar();
+  let events = [];
+
+  if (months != null) {
+    const chunks = monthChunksLastN(months);
+    for (const chunk of chunks) {
+      events = events.concat(await fetchMonthChunk(teamId, chunk));
+      await sleep(CHUNK_DELAY_MS);
+    }
+  } else if (all) {
+    let emptyStreak = 0;
+    let offset = 0;
+    while (emptyStreak < 2 && offset < 120) {
+      const now = new Date();
+      const d = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1),
+      );
+      const startMs = String(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+      const endMs = String(
+        Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+      );
+      const label = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      const batch = await fetchMonthChunk(teamId, { startMs, endMs, label });
+      if (batch.length === 0) emptyStreak += 1;
+      else emptyStreak = 0;
+      events = events.concat(batch);
+      offset += 1;
+      await sleep(CHUNK_DELAY_MS);
+    }
+  }
+
+  const cycle = await getBillingCycleMillis(teamId);
+  const billingCycle = formatBillingCycleLabel({
+    startMs: cycle.startMs,
+    endMs: cycle.endMs,
+  });
+  return {
+    events,
+    billingCycle,
+    pagination: { total: events.length },
     source: "api",
   };
 }
@@ -115,11 +193,20 @@ async function main() {
     if (!cookieHeaderFromJar(loadJar())) {
       throw new AuthError("missing cookie");
     }
-    console.log("Fetching Cursor usage…");
+    const fetchFlags = parseFetchArgs(process.argv.slice(2));
+    console.log(
+      fetchFlags.all || fetchFlags.months != null
+        ? "Fetching Cursor usage (historical backfill)…"
+        : "Fetching Cursor usage…",
+    );
 
     let result;
     try {
-      result = await fetchViaDashboardApi();
+      if (fetchFlags.all || fetchFlags.months != null) {
+        result = await fetchViaDashboardApiBackfill(fetchFlags);
+      } else {
+        result = await fetchViaDashboardApi();
+      }
     } catch (apiErr) {
       console.warn("Dashboard API failed, trying CSV export:", apiErr.message);
       try {
@@ -145,6 +232,10 @@ async function main() {
   } catch (e) {
     if (e instanceof AuthError) {
       handleAuthFailure(e);
+      process.exit(1);
+    }
+    if (e instanceof Error && /either --all or --months/i.test(e.message)) {
+      console.error(e.message);
       process.exit(1);
     }
     throw e;

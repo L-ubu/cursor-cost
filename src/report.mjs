@@ -2,6 +2,7 @@
 import { config } from "../config.mjs";
 import { loadEvents } from "./store.mjs";
 import { c, padEndVisible, visibleLength, modelColor } from "./colors.mjs";
+import { filterEventsByBillingCycle, projectionForCycle } from "./scope.mjs";
 
 const args = process.argv.slice(2);
 const flags = {
@@ -131,31 +132,6 @@ function stripModelColor(s) {
   return String(s).replace(/\x1b\[[0-9;]*m/g, "");
 }
 
-function filterCurrentMonth(events) {
-  const now = new Date();
-  const key = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  return events.filter((e) => utcMonthKey(e.timestamp) === key);
-}
-
-function billingCycleEvents(events, meta) {
-  if (!meta.billingCycle) return events;
-  return events;
-}
-
-function projectionMtd(onDemandTotal, events) {
-  const monthEvents = filterCurrentMonth(events);
-  const days = new Set(monthEvents.map((e) => utcDay(e.timestamp)));
-  const dayCount = days.size || 1;
-  const avg = onDemandTotal / dayCount;
-  const now = new Date();
-  const lastDay = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
-  ).getUTCDate();
-  const dayOfMonth = now.getUTCDate();
-  const projected = avg * lastDay;
-  return { avg, projected, dayOfMonth, lastDay, activeDays: dayCount };
-}
-
 function kv(label, value) {
   return `${c.dim(label)} ${value}`;
 }
@@ -167,30 +143,36 @@ function main() {
     process.exit(0);
   }
 
-  const scoped = billingCycleEvents(events, meta);
-  const onDemandTotal = sumOnDemand(scoped);
-  const tokensTotal = sumTokens(scoped);
-  const included = scoped.filter((e) => e.type === "Included");
-  const onDemand = scoped.filter((e) => e.type === "On-Demand");
-  const proj = projectionMtd(onDemandTotal, scoped);
+  const { events: cycleEvents, legacyMeta } = filterEventsByBillingCycle(
+    events,
+    meta,
+  );
+  const onDemandTotal = sumOnDemand(cycleEvents);
+  const allTimeOnDemand = sumOnDemand(events);
+  const tokensTotal = sumTokens(cycleEvents);
+  const included = cycleEvents.filter((e) => e.type === "Included");
+  const onDemand = cycleEvents.filter((e) => e.type === "On-Demand");
+  const proj = projectionForCycle(onDemandTotal, cycleEvents, meta);
   const budget = config.monthlyBudgetUsd;
   const budgetRatio = budget > 0 ? onDemandTotal / budget : 0;
 
   const report = {
     meta,
+    legacyMeta,
     totals: {
-      events: scoped.length,
+      events: cycleEvents.length,
       tokens: tokensTotal,
       onDemandUsd: onDemandTotal,
+      allTimeOnDemandUsd: allTimeOnDemand,
       includedEvents: included.length,
       onDemandEvents: onDemand.length,
     },
     projection: proj,
     budget: { limitUsd: budget, usedRatio: budgetRatio },
-    byModel: aggregateByModel(scoped),
-    byDay: groupBy(scoped, utcDay),
-    byWeek: groupBy(scoped, utcWeekKey),
-    byMonth: groupBy(scoped, utcMonthKey),
+    byModel: aggregateByModel(cycleEvents),
+    byDay: groupBy(events, utcDay),
+    byWeek: groupBy(events, utcWeekKey),
+    byMonth: groupBy(events, utcMonthKey),
   };
 
   if (flags.json) {
@@ -220,12 +202,29 @@ function main() {
 
   if (meta.billingCycle)
     console.log(kv("Billing cycle:", c.brightCyan(meta.billingCycle)));
+  if (legacyMeta) {
+    console.log(
+      c.dim(
+        "  (Run cursor-cost fetch to scope totals to the current billing cycle.)",
+      ),
+    );
+  }
   console.log();
   console.log(
-    kv("Events:", c.brightWhite(String(scoped.length))) +
+    kv("Events:", c.brightWhite(String(cycleEvents.length))) +
       c.dim("  │  ") +
       kv("Tokens:", c.brightWhite(formatTokens(tokensTotal))),
   );
+  if (events.length !== cycleEvents.length) {
+    console.log(
+      kv(
+        "All-time store:",
+        c.dim(
+          `${events.length} events, on-demand ${formatUsd(allTimeOnDemand)}`,
+        ),
+      ),
+    );
+  }
   console.log();
   console.log(
     kv("On-Demand:", c.bold(c.brightRed(formatUsd(onDemandTotal)))) +
@@ -239,7 +238,11 @@ function main() {
       kv(
         "Projected:",
         c.brightYellow(formatUsd(proj.projected)) +
-          c.dim(` (day ${proj.dayOfMonth}/${proj.lastDay})`),
+          c.dim(
+            proj.cycleScoped
+              ? ` (day ${proj.dayOfMonth}/${proj.lastDay} of cycle)`
+              : ` (day ${proj.dayOfMonth}/${proj.lastDay})`,
+          ),
       ),
   );
   console.log();
@@ -258,7 +261,7 @@ function main() {
   }
 
   if (flags.models || (!flags.week && !flags.month && !flags.day)) {
-    const byModel = aggregateByModel(scoped);
+    const byModel = aggregateByModel(cycleEvents);
     const totalOd = onDemandTotal || 1;
     const rows = Object.entries(byModel)
       .sort(
@@ -280,7 +283,7 @@ function main() {
   }
 
   if (flags.day) {
-    const byDay = groupBy(scoped, utcDay);
+    const byDay = groupBy(events, utcDay);
     const rows = Object.entries(byDay)
       .sort((a, b) => b[0].localeCompare(a[0]))
       .slice(0, 31)
@@ -295,7 +298,7 @@ function main() {
   }
 
   if (flags.week) {
-    const byWeek = groupBy(scoped, utcWeekKey);
+    const byWeek = groupBy(events, utcWeekKey);
     const rows = Object.entries(byWeek)
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([wk, evs]) => [
@@ -309,7 +312,7 @@ function main() {
   }
 
   if (flags.month) {
-    const byMonth = groupBy(scoped, utcMonthKey);
+    const byMonth = groupBy(events, utcMonthKey);
     const rows = Object.entries(byMonth)
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([mo, evs]) => [

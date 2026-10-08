@@ -1,6 +1,6 @@
 {
   "name": "cursor-cost",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Know what Cursor is costing you. Per model, per day, per month — from your own dashboard, no admin API key needed.",
   "type": "module",
   "bin": {
@@ -45,7 +45,7 @@
     "cost": "node src/fetch.mjs && node src/report.mjs",
     "install-schedule": "node scripts/install-schedule.mjs",
     "uninstall-schedule": "node scripts/uninstall-schedule.mjs",
-    "verify": "node scripts/verify-parser.mjs"
+    "verify": "node scripts/verify-parser.mjs && node scripts/verify-report.mjs"
   },
   "dependencies": {
     "node-html-parser": "^7.0.1",

@@ -126,7 +126,14 @@ function normalizeTimestamp(raw) {
       if (ampm.toUpperCase() === "AM" && hour === 12) hour = 0;
     }
     const dt = new Date(
-      Date.UTC(parseInt(m[3], 10), months[m[1]], parseInt(m[2], 10), hour, min, sec),
+      Date.UTC(
+        parseInt(m[3], 10),
+        months[m[1]],
+        parseInt(m[2], 10),
+        hour,
+        min,
+        sec,
+      ),
     );
     return dt.toISOString();
   }
@@ -136,7 +143,9 @@ function normalizeTimestamp(raw) {
 export function parseUsageHtml(html) {
   /** @type {UsageEvent[]} */
   const events = [];
-  const root = parseHtml(html, { blockTextElements: { script: true, style: true } });
+  const root = parseHtml(html, {
+    blockTextElements: { script: true, style: true },
+  });
 
   const rows = root.querySelectorAll('[role="row"]');
   for (const row of rows) {
@@ -169,7 +178,8 @@ export function parseUsageHtml(html) {
 
 export function parseUsageCsv(csvText) {
   const lines = csvText.trim().split(/\r?\n/);
-  if (lines.length < 2) return { events: [], billingCycle: null, pagination: null };
+  if (lines.length < 2)
+    return { events: [], billingCycle: null, pagination: null };
 
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
   const idx = (names) => {
@@ -183,8 +193,9 @@ export function parseUsageCsv(csvText) {
   const iDate = idx(["date"]);
   const iUser = idx(["user"]);
   const iType = idx(["type"]);
+  const iKind = idx(["kind"]);
   const iModel = idx(["model"]);
-  const iTokens = idx(["token"]);
+  const iTokens = idx(["total tokens", "token"]);
   const iCost = idx(["cost"]);
 
   /** @type {UsageEvent[]} */
@@ -194,14 +205,17 @@ export function parseUsageCsv(csvText) {
     if (cols.length < 4) continue;
     const timestamp = normalizeTimestamp(cols[iDate >= 0 ? iDate : 0]);
     if (!timestamp) continue;
+    const typeCol =
+      iKind >= 0 ? cols[iKind] : iType >= 0 ? cols[iType] : "Included";
+    const costCol = iCost >= 0 ? cols[iCost] : "";
     events.push({
       timestamp,
       user: iUser >= 0 ? cols[iUser] : undefined,
-      type: normalizeType(iType >= 0 ? cols[iType] : "Included"),
+      type: normalizeType(typeCol),
       model: cols[iModel >= 0 ? iModel : 4] || "unknown",
       tokens: parseTokenCount(cols[iTokens >= 0 ? iTokens : 5]),
-      costUsd: parseCostUsd(cols[iCost >= 0 ? iCost : 6]),
-      rawCost: cols[iCost >= 0 ? iCost : 6],
+      costUsd: parseCostUsd(costCol),
+      rawCost: costCol || undefined,
     });
   }
   return { events, billingCycle: null, pagination: null };

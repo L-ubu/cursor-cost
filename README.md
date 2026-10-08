@@ -132,8 +132,13 @@ lives in `~/.cursor-cost/`, and `.env` / `data/` are gitignored in the repo.
 
 ## Caveats
 
+- The main report totals (on-demand spend, budget bar, by model) are scoped to
+  the **current billing cycle** from the dashboard API. `day`, `week`, and
+  `month` breakdowns use everything in your local store.
 - Only **On-Demand** rows cost real money; "Included" rows are plan usage. The
-  report splits them.
+  report splits them. Dollar amounts come from the dashboard field
+  `usageBasedCosts` (same as the Cost column in the usage UI), not the CSV
+  **Requests** column.
 - If Cursor changes the dashboard endpoints, the fetcher needs a small update.
   There are three fallbacks (JSON API → CSV export → HTML scrape), in that
   order.

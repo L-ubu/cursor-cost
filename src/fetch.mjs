@@ -62,6 +62,8 @@ async function fetchViaDashboardApi() {
   return {
     events,
     billingCycle,
+    billingCycleStartMs: result.billingCycle.startMs,
+    billingCycleEndMs: result.billingCycle.endMs,
     pagination: { total: result.totalUsageEventsCount },
     source: "api",
   };
@@ -118,6 +120,8 @@ async function fetchViaDashboardApiBackfill({ all, months }) {
   return {
     events,
     billingCycle,
+    billingCycleStartMs: cycle.startMs,
+    billingCycleEndMs: cycle.endMs,
     pagination: { total: events.length },
     source: "api",
   };
@@ -220,12 +224,25 @@ async function main() {
     console.log(
       `Parsed ${result.events.length} events (${result.source}${result.billingCycle ? `, cycle: ${result.billingCycle}` : ""})`,
     );
+    if (
+      (result.source === "csv-export" || result.source === "csv-link") &&
+      result.events.some((e) => e.type === "On-Demand" && e.costUsd == null)
+    ) {
+      console.warn(
+        "CSV export has no Cost column; on-demand USD totals need the JSON API. Re-run fetch after fixing session if API failed.",
+      );
+    }
     const store = loadEvents();
-    const { added, total } = mergeEvents(store, result.events, {
+    const metaPatch = {
       billingCycle: result.billingCycle,
       lastSource: result.source,
       teamId: teamIdFromJar(),
-    });
+    };
+    if (result.billingCycleStartMs != null) {
+      metaPatch.billingCycleStartMs = result.billingCycleStartMs;
+      metaPatch.billingCycleEndMs = result.billingCycleEndMs;
+    }
+    const { added, total } = mergeEvents(store, result.events, metaPatch);
     console.log(
       `Store: +${added} new, ${total} total events → ${config.eventsPath}`,
     );

@@ -1,6 +1,6 @@
 {
   "name": "cursor-cost",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Know what Cursor is costing you. Per model, per day, per month — from your own dashboard, no admin API key needed.",
   "type": "module",
   "bin": {
